@@ -82,6 +82,8 @@ class Board(object):
     def do_move(self, move):
         self.states[move] = self.current_player
         self.availables.remove(move)
+        for move in self.availables: # TODO: This for loop can be in parallel
+            if self.check_forbidden(move): self.availables.remove(move)
         self.current_player = (
             self.players[0] if self.current_player == self.players[1]
             else self.players[1]
