@@ -24,12 +24,18 @@ class Board(object):
         self.n_in_row = int(kwargs.get('n_in_row', 5))
         self.players = [1, 2]  # player1 and player2
 
-        self.detail_forbidden_check = kwargs.get('detail_forbidden_check', False)
+        # 0 for no check, 
+        # 1 for check current move but not keypoints, 2 for check recursively
+        # positive option for removing balance breakers out of self.availables
+        # negative option for check forbiddens when judging
+        self.forbidden_check_level = kwargs.get('forbidden_check_level', 0)
 
     def init_board(self, start_player=0):
         if self.width < self.n_in_row or self.height < self.n_in_row:
             raise Exception('board width and height can not be '
                             'less than {}'.format(self.n_in_row))
+        self.start_player = start_player
+        self.balance_breaker_violated = False
         self.current_player = self.players[start_player]  # start player
         # keep available moves in a list
         self.availables = list(range(self.width * self.height))
@@ -82,8 +88,16 @@ class Board(object):
     def do_move(self, move):
         self.states[move] = self.current_player
         self.availables.remove(move)
-        for move in self.availables: # TODO: This for loop can be in parallel
-            if self.check_forbidden(move): self.availables.remove(move)
+        if self.forbidden_check_level > 0 \
+            and self.current_player is self.players[self.start_player]:
+            for m in self.availables: # TODO: This for loop can be in parallel
+                if self.check_forbidden(m): self.availables.remove(m)
+
+        if self.forbidden_check_level < 0 \
+            and self.current_player is self.players[self.start_player]:
+            self.balance_breaker_violated = self.check_forbidden(move)
+
+        # switch player and record last_move
         self.current_player = (
             self.players[0] if self.current_player == self.players[1]
             else self.players[1]
@@ -95,6 +109,12 @@ class Board(object):
         height = self.height
         states = self.states
         n = self.n_in_row
+
+        if self.balance_breaker_violated:
+            winner = (self.players[0] if self.start_player == self.players[1]
+                else self.players[1]
+            )
+            return True, winner
 
         moved = list(set(range(width * height)) - set(self.availables))
         if len(moved) < self.n_in_row *2-1:
@@ -126,7 +146,7 @@ class Board(object):
     def check_keypoint_forbidden(self, x, y, dir_i: int, adjsame: int):
         """ A wrapper to check keypoints based on caller's move location.
         """
-        if not self.detail_forbidden_check:
+        if abs(self.forbidden_check_level) < 2:
             return False
 
         self.states[self.location_to_move([x, y])] = self.current_player
