@@ -9,6 +9,9 @@ import numpy as np
 
 class Board(object):
     """board for the game"""
+    
+    ### 8 counter-clockwise directions
+    directions = [[-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1]]
 
     def __init__(self, **kwargs):
         self.width = int(kwargs.get('width', 8))
@@ -20,6 +23,8 @@ class Board(object):
         # need how many pieces in a row to win
         self.n_in_row = int(kwargs.get('n_in_row', 5))
         self.players = [1, 2]  # player1 and player2
+
+        self.detail_forbidden_check = kwargs.get('detail_forbidden_check', False)
 
     def init_board(self, start_player=0):
         if self.width < self.n_in_row or self.height < self.n_in_row:
@@ -115,6 +120,127 @@ class Board(object):
                 return True, player
 
         return False, -1
+
+    def check_keypoint_forbidden(self, x, y, dir_i: int, adjsame: int):
+        """ A wrapper to check keypoints based on caller's move location.
+        """
+        if not self.detail_forbidden_check:
+            return False
+
+        self.states[self.location_to_move([x, y])] = self.current_player
+
+        dir_x, dir_y = self.directions[dir_i]
+        keypoint_move = self.location_to_move([x+dir_x*adjsame, y+dir_y*adjsame])
+        result = self.check_forbidden(keypoint_move)
+
+        self.states.pop(self.location_to_move([x, y]))
+        return result
+
+    def check_forbidden(self, move):
+        """ check whether current move is a balance breaker. If forbidden, return True
+        Implementation referring to https://blog.csdn.net/JkSparkle/article/details/822873
+        """
+        loc_x, loc_y = self.move_to_location(move)
+
+        ### 8 for each direction
+        adjsame = np.zeros((8,), dtype= np.uint8) # the number of current player directly adjacent to this point
+        adjempty = np.zeros((8,), dtype= np.uint8) # the number of empty space behind adjsame
+        jumpsame = np.zeros((8,), dtype= np.uint8) # the number of current player behind adjempty
+        jumpempty = np.zeros((8,), dtype= np.uint8) # the number of empty space behind jumpsame
+        jumpjumpsame = np.zeros((8,), dtype= np.uint8) # the number of current player behind jumpempty
+
+        ### Then search along all 8 directions
+        for i, (x_i, y_i) in enumerate(self.directions):
+            x_, y_ = loc_x+x_i, loc_y+y_i
+            while (x_ >= 0 and x_ < self.width and y_ >= 0 and y_ < self.height \
+                and self.states.get(self.location_to_move([x_, y_]), None) is self.current_player):
+                x_ += x_i; y_ += y_i; adjsame[i] += 1
+            while (x_ >= 0 and x_ < self.width and y_ >= 0 and y_ < self.height \
+                and self.states.get(self.location_to_move([x_, y_]), None) is None):
+                x_ += x_i; y_ += y_i; adjempty[i] += 1
+            while (x_ >= 0 and x_ < self.width and y_ >= 0 and y_ < self.height \
+                and self.states.get(self.location_to_move([x_, y_]), None) is self.current_player):
+                x_ += x_i; y_ += y_i; jumpsame[i] += 1
+            while (x_ >= 0 and x_ < self.width and y_ >= 0 and y_ < self.height \
+                and self.states.get(self.location_to_move([x_, y_]), None) is None):
+                x_ += x_i; y_ += y_i; jumpempty[i] += 1
+            while (x_ >= 0 and x_ < self.width and y_ >= 0 and y_ < self.height \
+                and self.states.get(self.location_to_move([x_, y_]), None) is self.current_player):
+                x_ += x_i; y_ += y_i; jumpjumpsame[i] += 1
+
+        ### check balance breaker
+        three_count, four_count = 0, 0
+        for i in range(4):
+            if adjsame[i] + adjsame[i+4] >= 5:
+                return True # long-connection
+            elif adjsame[i] + adjsame[i+4] == 3: # 4 stones connected
+                isFour = False
+                if adjsame[i] > 0:
+                    isFour |= not self.check_keypoint_forbidden(loc_x, loc_y, i, adjsame[i])
+                if adjsame[i+4] > 0:
+                    isFour |= not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i])
+                if isFour: four_count += 1
+            elif adjsame[i] + adjsame[i+4] == 2: # 3 stones connected
+                # advance four or active four checking
+                if adjempty[i] == 1 and jumpsame[i] == 1:
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i, adjsame[i]):
+                        four_count += 1
+                if adjempty[i+4] == 1 and jumpsame[i+4] == 1:
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
+                        four_count += 1
+                # active threee checking
+                isThree = False
+                if (adjempty[i] > 2 or adjempty[i] == 2 and jumpsame[i] == 0) \
+                    and (adjempty[i+4] > 1 or adjempty[i+4] == 1 and jumpsame[i+4]):
+                    isThree |= not self.check_keypoint_forbidden(loc_x, loc_y, i, adjsame[i])
+                if (adjempty[i+4] > 2 or adjempty[i+4] == 2 and jumpsame[i+4] == 0) \
+                    and (adjempty[i] > 1 or adjempty[i] == 1 and jumpsame[i]):
+                    isThree |= not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4])
+                if isThree: three_count += 1
+            elif adjsame[i] + adjsame[i+4] == 1: # 2 stones connected
+                # advance four or active four checking
+                if adjempty[i] == 1 and jumpsame[i] == 2:
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i, adjsame[i]):
+                        four_count += 1
+                if adjempty[i+4] == 1 and jumpsame[i+4] == 2:
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
+                        four_count += 1
+                # active threee checking
+                if adjempty[i] == 1 and jumpsame[i] == 1 \
+                    and (jumpempty[i] > 1 or jumpempty[i] == 1 and jumpjumpsame[i] == 0) \
+                    and (adjempty[i+4] > 1 or adjempty[i+4] == 1 and jumpsame[i+4] == 0):
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i, adjsame[i]):
+                        three_count += 1
+                if adjempty[i+4] == 1 and jumpsame[i+4] == 1 \
+                    and (jumpempty[i+4] > 1 or jumpempty[i+4] == 1 and jumpjumpsame[i+4] == 0) \
+                    and (adjempty[i] > 1 or adjempty[i] == 1 and jumpsame[i] == 0):
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
+                        three_count += 1
+            elif adjsame[i] + adjsame[i+4] == 0: # 1 stone
+                # advance four or active four checking
+                if adjempty[i] == 1 and jumpsame[i] == 3:
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i, adjsame[i]):
+                        four_count += 1
+                if adjempty[i+4] == 1 and jumpsame[i+4] == 3:
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
+                        four_count += 1
+                # active threee checking
+                if adjempty[i] == 1 and jumpsame[i] == 2 \
+                    and (jumpempty[i] > 1 or jumpempty[i] == 1 and jumpjumpsame[i] == 0) \
+                    and (adjempty[i+4] > 1 or adjempty[i+4] == 1 and jumpsame[i+4] == 0):
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i, adjsame[i]):
+                        three_count += 1
+                if adjempty[i+4] == 1 and jumpsame[i+4] == 2 \
+                    and (jumpempty[i+4] > 1 or jumpempty[i+4] == 1 and jumpjumpsame[i+4] == 0) \
+                    and (adjempty[i] > 1 or adjempty[i] == 1 and jumpsame[i] == 0):
+                    if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
+                        three_count += 1
+
+        ### counting the active three, advance four and active fours
+        if four_count > 1 or three_count > 1:
+            return True
+        else:
+            return False
 
     def game_end(self):
         """Check whether the game is ended or not"""
