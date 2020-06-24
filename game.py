@@ -264,6 +264,9 @@ class Board(object):
         else:
             return False
 
+    def show_board(self):
+        return Game.graphic(self, self, *self.players)
+
     def game_end(self):
         """Check whether the game is ended or not"""
         win, winner = self.has_a_winner()
