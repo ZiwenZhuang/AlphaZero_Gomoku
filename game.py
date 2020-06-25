@@ -210,7 +210,7 @@ class Board(object):
                 if adjempty[i+4] == 1 and jumpsame[i+4] == 1:
                     if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
                         four_count += 1
-                # active threee checking
+                # active three checking
                 isThree = False
                 if (adjempty[i] > 2 or adjempty[i] == 2 and jumpsame[i] == 0) \
                     and (adjempty[i+4] > 1 or adjempty[i+4] == 1 and jumpsame[i+4]):
@@ -227,7 +227,7 @@ class Board(object):
                 if adjempty[i+4] == 1 and jumpsame[i+4] == 2:
                     if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
                         four_count += 1
-                # active threee checking
+                # active three checking
                 if adjempty[i] == 1 and jumpsame[i] == 1 \
                     and (jumpempty[i] > 1 or jumpempty[i] == 1 and jumpjumpsame[i] == 0) \
                     and (adjempty[i+4] > 1 or adjempty[i+4] == 1 and jumpsame[i+4] == 0):
@@ -246,7 +246,7 @@ class Board(object):
                 if adjempty[i+4] == 1 and jumpsame[i+4] == 3:
                     if not self.check_keypoint_forbidden(loc_x, loc_y, i+4, adjsame[i+4]):
                         four_count += 1
-                # active threee checking
+                # active three checking
                 if adjempty[i] == 1 and jumpsame[i] == 2 \
                     and (jumpempty[i] > 1 or jumpempty[i] == 1 and jumpjumpsame[i] == 0) \
                     and (adjempty[i+4] > 1 or adjempty[i+4] == 1 and jumpsame[i+4] == 0):
