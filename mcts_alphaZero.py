@@ -187,6 +187,10 @@ class MCTSPlayer(object):
         # the pi vector returned by MCTS as in the alphaGo Zero paper
         move_probs = np.zeros(board.width*board.height)
         if len(sensible_moves) > 0:
+            if not self._is_selfplay:
+                # to reuse the tree, we update the root by boards last move
+                self.mcts.update_with_move(board.last_move)
+            
             acts, probs = self.mcts.get_move_probs(board, temp)
             move_probs[list(acts)] = probs
             if self._is_selfplay:
@@ -202,8 +206,8 @@ class MCTSPlayer(object):
                 # with the default temp=1e-3, it is almost equivalent
                 # to choosing the move with the highest prob
                 move = np.random.choice(acts, p=probs)
-                # reset the root node
-                self.mcts.update_with_move(-1)
+                # update the root node and reuse the search tree
+                self.mcts.update_with_move(move)
 #                location = board.move_to_location(move)
 #                print("AI move: %d,%d\n" % (location[0], location[1]))
 
