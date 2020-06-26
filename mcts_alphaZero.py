@@ -172,9 +172,10 @@ class MCTSPlayer(object):
     """AI player based on MCTS"""
 
     def __init__(self, policy_value_function,
-                 c_puct=5, n_playout=2000, is_selfplay=0):
+                 c_puct=5, n_playout=2000, is_selfplay=0, save_tree_on_compete= False):
         self.mcts = MCTS(policy_value_function, c_puct, n_playout)
         self._is_selfplay = is_selfplay
+        self.save_tree_on_compete = save_tree_on_compete # whether to reuse tree when not self play
 
     def set_player_ind(self, p):
         self.player = p
