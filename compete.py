@@ -61,7 +61,7 @@ def run(n_competition= 100, seed= 128):
             if winner == 1: player1_win += 1
             elif winner == 2: player2_win += 1
             print("seed {}, Player {} wins".format(competition_i + seed, winner))
-        print("Competition complete: player1 wins {}, player2 wins {}".format(player1_win, player2_win))
+        print("Competition complete: player1 wins {:.0%}, player2 wins {:.0%}".format(player1_win/n_competition, player2_win/n_competition))
     except KeyboardInterrupt:
         print('\n\rquit')
 
