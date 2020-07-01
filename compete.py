@@ -13,16 +13,17 @@ from mcts_pure import MCTSPlayer as MCTS_Pure
 from mcts_alphaZero import MCTSPlayer
 # from policy_value_net_numpy import PolicyValueNetNumpy
 # from policy_value_net import PolicyValueNet  # Theano and Lasagne
-from policy_value_net_pytorch import PolicyValueNet  # Pytorch
+from policy_value_net_pytorch import PolicyValueNet, LinearNet  # Pytorch
 import torch
 # from policy_value_net_tensorflow import PolicyValueNet # Tensorflow
 # from policy_value_net_keras import PolicyValueNet  # Keras
 
 
-def run(n_competition= 100, seed= 128):
+def run(n_competition= 10, seed= 12138):
     n = 5
     width, height = 15, 15
-    model_file = 'best_policy_15_15_5_forbidden_pyt.model'
+    dnn_file = 'best_policy_15_15_5_forbidden_pyt.model'
+    lin_file = 'linear_policy_15_15_forbidden_pytorch.model'
     try:
         board = Board(width=width, height=height, n_in_row=n, forbidden_check_level=-1)
         game = Game(board)
@@ -30,11 +31,11 @@ def run(n_competition= 100, seed= 128):
         # ############### human VS AI ###################
         # load the trained policy_value_net in either Theano/Lasagne, PyTorch or TensorFlow
 
-        policy1 = PolicyValueNet(width, height, model_file = model_file)
-        player1 = MCTSPlayer(policy1.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
+        policyA = PolicyValueNet(width, height, model_file = dnn_file)
+        playerA = MCTSPlayer(policyA.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
 
-        policy2 = PolicyValueNet(width, height, model_file = model_file)
-        player2 = MCTSPlayer(policy2.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= True)
+        policyB = PolicyValueNet(width, height, PolicyValueNetCls= LinearNet, model_file = lin_file)
+        playerB = MCTSPlayer(policyB.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= True)
 
         # load the provided model (trained in Theano/Lasagne) into a MCTS player written in pure numpy
         # try:
@@ -52,12 +53,23 @@ def run(n_competition= 100, seed= 128):
 
         # start multiple competes and count the winning rate
         player1_win, player2_win = 0, 0
+        print("player 1 start first")
         for competition_i in range(n_competition):
             np.random.seed(competition_i + seed)
             torch.manual_seed(competition_i + seed)
             if torch.cuda.is_available():
                 torch.cuda.manual_seed_all(competition_i + seed)
-            winner = game.start_play(player1, player2, start_player=0, is_shown=0)
+            winner = game.start_play(playerA, playerB, start_player=0, is_shown=0)
+            if winner == 1: player1_win += 1
+            elif winner == 2: player2_win += 1
+            print("seed {}, Player {} wins".format(competition_i + seed, winner))
+        print("player 2 start first")
+        for competition_i in range(n_competition):
+            np.random.seed(competition_i + seed)
+            torch.manual_seed(competition_i + seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(competition_i + seed)
+            winner = game.start_play(playerA, playerB, start_player=1, is_shown=0)
             if winner == 1: player1_win += 1
             elif winner == 2: player2_win += 1
             print("seed {}, Player {} wins".format(competition_i + seed, winner))
