@@ -18,12 +18,12 @@ import torch
 # from policy_value_net_tensorflow import PolicyValueNet # Tensorflow
 # from policy_value_net_keras import PolicyValueNet  # Keras
 
+dnn_file = 'best_policy_15_15_5_forbidden_pyt.model'
+lin_file = 'linear_policy_15_15_forbidden_pytorch.model'
+n = 5
+width, height = 15, 15
 
-def run(n_competition= 10, seed= 12138):
-    n = 5
-    width, height = 15, 15
-    dnn_file = 'best_policy_15_15_5_forbidden_pyt.model'
-    lin_file = 'linear_policy_15_15_forbidden_pytorch.model'
+def run(playerA, playerB, n_competition= 10, seed= 12138):
     try:
         board = Board(width=width, height=height, n_in_row=n, forbidden_check_level=-1)
         game = Game(board)
@@ -31,11 +31,11 @@ def run(n_competition= 10, seed= 12138):
         # ############### human VS AI ###################
         # load the trained policy_value_net in either Theano/Lasagne, PyTorch or TensorFlow
 
-        policyA = PolicyValueNet(width, height, model_file = dnn_file)
-        playerA = MCTSPlayer(policyA.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
+        # policyA = PolicyValueNet(width, height, model_file = dnn_file)
+        # playerA = MCTSPlayer(policyA.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
 
-        policyB = PolicyValueNet(width, height, PolicyValueNetCls= LinearNet, model_file = lin_file)
-        playerB = MCTSPlayer(policyB.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= True)
+        # policyB = PolicyValueNet(width, height, PolicyValueNetCls= LinearNet, model_file = lin_file)
+        # playerB = MCTSPlayer(policyB.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
 
         # load the provided model (trained in Theano/Lasagne) into a MCTS player written in pure numpy
         # try:
@@ -73,10 +73,32 @@ def run(n_competition= 10, seed= 12138):
             if winner == 1: player1_win += 1
             elif winner == 2: player2_win += 1
             print("seed {}, Player {} wins".format(competition_i + seed, winner))
-        print("Competition complete: player1 wins {:.0%}, player2 wins {:.0%}".format(player1_win/n_competition, player2_win/n_competition))
+        print("Competition complete: player1 wins {:.0%}, player2 wins {:.0%}".format(player1_win/n_competition/2, player2_win/n_competition/2))
     except KeyboardInterrupt:
         print('\n\rquit')
 
+def improvement_compete():
+
+    policyA = PolicyValueNet(width, height, model_file = dnn_file)
+    playerA = MCTSPlayer(policyA.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= True)
+
+    policyB = PolicyValueNet(width, height, model_file = dnn_file)
+    playerB = MCTSPlayer(policyB.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
+
+    run(playerA, playerB)
+
+def linear_approximator_compete():
+    policyA = PolicyValueNet(width, height, model_file = dnn_file)
+    playerA = MCTSPlayer(policyA.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
+
+    policyB = PolicyValueNet(width, height, PolicyValueNetCls= LinearNet, model_file = lin_file)
+    playerB = MCTSPlayer(policyB.policy_value_fn, c_puct=5, n_playout=400, save_tree_on_compete= False)
+
+    run(playerA, playerB)
+
 
 if __name__ == '__main__':
-    run()
+    
+    improvement_compete()
+
+    linear_approximator_compete()
